@@ -1,0 +1,130 @@
+C51 COMPILER V9.01   IIC                                                                   01/04/2015 13:22:33 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE IIC
+OBJECT MODULE PLACED IN IIC.OBJ
+COMPILER INVOKED BY: E:\Program Files\Keil\C51\BIN\C51.EXE IIC.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+*** WARNING C500 IN LINE 1 OF IIC.C: LICENSE ERROR (R208: RENEW LICENSE ID CODE (LIC))
+
+   1          #include "STC15F2K60S2.h"
+   2          #include "IIC.h"
+   3          #include "delay.h"
+   4          #include "modbus.h"
+   5          unsigned char Exflag;
+   6          unsigned char Exdata;
+   7          
+   8          void i2cinit()//总线初始化
+   9          {
+  10   1       SDA = 1;
+  11   1       delay();
+  12   1       SCL = 1;
+  13   1       delay();
+  14   1      }
+  15          void start()//启动信号
+  16          {
+  17   1       SDA = 1;
+  18   1       SCL = 1;
+  19   1       delay();
+  20   1       SDA = 0;
+  21   1       delay();
+  22   1      }
+  23          void stop()//停止信号
+  24          {
+  25   1       SDA = 0;
+  26   1       delay();
+  27   1       SCL = 1;
+  28   1       delay();
+  29   1       SDA = 1;
+  30   1       delay();
+  31   1      }
+  32          void respons()//应答信号
+  33          {
+  34   1       unsigned char i = 0;
+  35   1       SCL = 1;
+  36   1       delay();
+  37   1       while(SDA == 1 && i < 255)//等待应答，过一段时间不应答退出循环
+  38   1        i++;
+  39   1       SCL = 0;
+  40   1       delay();
+  41   1      }
+  42          void writebyte(unsigned char date)//写一个字节
+  43          {
+  44   1       unsigned char i,temp;
+  45   1       temp = date;
+  46   1       for(i = 0; i < 8; i++)
+  47   1       {
+  48   2        temp <<= 1;//temp左移一位后高位进CY
+  49   2        SCL = 0;
+  50   2        delay();
+  51   2        SDA = CY;
+  52   2        delay();
+  53   2        SCL = 1;
+  54   2        delay();
+C51 COMPILER V9.01   IIC                                                                   01/04/2015 13:22:33 PAGE 2   
+
+  55   2       } 
+  56   1       SCL = 0;//应答信号中SCL = 1，所以这里要置0
+  57   1       delay();
+  58   1       SDA = 1;//用完要释放数据总线
+  59   1       delay();
+  60   1      }
+  61          unsigned char readbyte()//读一个字节 
+  62          {
+  63   1       unsigned char i,k;
+  64   1       SCL = 0;
+  65   1       delay();
+  66   1       SDA = 1;
+  67   1       for(i = 0; i < 8; i++)
+  68   1       {
+  69   2        SCL = 1; 
+  70   2        delay();
+  71   2        k = (k << 1) | SDA; //和最低位或，一位位送到K
+  72   2        SCL = 0;
+  73   2        delay();
+  74   2       }
+  75   1       delay();
+  76   1       return k;
+  77   1      }
+  78          void write_add(unsigned char address,unsigned char date)//向控制板发送数据
+  79          {
+  80   1       start();
+  81   1       writebyte(0x01);//向地址为01的控制板发送数据
+  82   1       respons();
+  83   1       writebyte(address); //控制板内部暂存器地址
+  84   1       respons();
+  85   1       writebyte(date);
+  86   1       respons();
+  87   1       stop();
+  88   1      }
+  89          unsigned char read_add(unsigned char address)//读控制板内部寄存器数据
+  90          {
+  91   1       unsigned char date;
+  92   1       start();
+  93   1       writebyte(0x01);// 地址01
+  94   1       respons();
+  95   1       writebyte(address); //控制板内部暂存器地址 
+  96   1       respons();
+  97   1       start();
+  98   1       writebyte(0x02);//地址+1做校验
+  99   1       respons();
+ 100   1       date = readbyte();     //开始读数据
+ 101   1       stop();                        //读取完毕停止
+ 102   1       return date;
+ 103   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    233    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      2       9
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

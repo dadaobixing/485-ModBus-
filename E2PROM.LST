@@ -1,0 +1,102 @@
+C51 COMPILER V9.01   E2PROM                                                                01/04/2015 13:22:33 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE E2PROM
+OBJECT MODULE PLACED IN E2PROM.OBJ
+COMPILER INVOKED BY: E:\Program Files\Keil\C51\BIN\C51.EXE E2PROM.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+*** WARNING C500 IN LINE 1 OF E2PROM.C: LICENSE ERROR (R208: RENEW LICENSE ID CODE (LIC))
+
+   1          #include "STC15F2K60S2.h"
+   2          #include "E2PROM.h"
+   3          #include "intrins.h"
+   4          #define CMD_IDLE    0               //空闲模式
+   5          #define CMD_READ    1               //IAP字节读命令
+   6          #define CMD_PROGRAM 2               //IAP字节编程命令
+   7          #define CMD_ERASE   3               //IAP扇区擦除命令
+   8          
+   9          #define ENABLE_IAP  0x82            //if SYSCLK<20MHz
+  10          
+  11          //测试地址
+  12          #define IAP_ADDRESS 0x0400
+  13          
+  14          /*----------------------------
+  15          关闭IAP
+  16          ----------------------------*/
+  17          void IapIdle()
+  18          {
+  19   1          IAP_CONTR = 0;                  //关闭IAP功能
+  20   1          IAP_CMD = 0;                    //清除命令寄存器
+  21   1          IAP_TRIG = 0;                   //清除触发寄存器
+  22   1          IAP_ADDRH = 0x80;               //将地址设置到非IAP区域
+  23   1          IAP_ADDRL = 0;
+  24   1      }
+  25          
+  26          /*----------------------------
+  27          从ISP/IAP/EEPROM区域读取一字节
+  28          ----------------------------*/
+  29          unsigned char IapReadByte(unsigned int addr)
+  30          {
+  31   1          unsigned char dat;                       //数据缓冲区
+  32   1      
+  33   1          IAP_CONTR = ENABLE_IAP;         //使能IAP
+  34   1          IAP_CMD = CMD_READ;             //设置IAP命令
+  35   1          IAP_ADDRL = addr;               //设置IAP低地址
+  36   1          IAP_ADDRH = addr >> 8;          //设置IAP高地址
+  37   1          IAP_TRIG = 0x5a;                //写触发命令(0x5a)
+  38   1          IAP_TRIG = 0xa5;                //写触发命令(0xa5)
+  39   1          _nop_();                        //等待ISP/IAP/EEPROM操作完成
+  40   1          dat = IAP_DATA;                 //读ISP/IAP/EEPROM数据
+  41   1          IapIdle();                      //关闭IAP功能
+  42   1      
+  43   1          return dat;                     //返回
+  44   1      }
+  45          
+  46          /*----------------------------
+  47          写一字节数据到ISP/IAP/EEPROM区域
+  48          ----------------------------*/
+  49          void IapProgramByte(unsigned int addr, unsigned char dat)
+  50          {
+  51   1          IAP_CONTR = ENABLE_IAP;         //使能IAP
+  52   1          IAP_CMD = CMD_PROGRAM;          //设置IAP命令
+  53   1          IAP_ADDRL = addr;               //设置IAP低地址
+  54   1          IAP_ADDRH = addr >> 8;          //设置IAP高地址
+C51 COMPILER V9.01   E2PROM                                                                01/04/2015 13:22:33 PAGE 2   
+
+  55   1          IAP_DATA = dat;                 //写ISP/IAP/EEPROM数据
+  56   1          IAP_TRIG = 0x5a;                //写触发命令(0x5a)
+  57   1          IAP_TRIG = 0xa5;                //写触发命令(0xa5)
+  58   1          _nop_();                        //等待ISP/IAP/EEPROM操作完成
+  59   1          IapIdle();
+  60   1      }
+  61          
+  62          /*----------------------------
+  63          扇区擦除
+  64          ----------------------------*/
+  65          void IapEraseSector(unsigned int addr)
+  66          {
+  67   1          IAP_CONTR = ENABLE_IAP;         //使能IAP
+  68   1          IAP_CMD = CMD_ERASE;            //设置IAP命令
+  69   1          IAP_ADDRL = addr;               //设置IAP低地址
+  70   1          IAP_ADDRH = addr >> 8;          //设置IAP高地址
+  71   1          IAP_TRIG = 0x5a;                //写触发命令(0x5a)
+  72   1          IAP_TRIG = 0xa5;                //写触发命令(0xa5)
+  73   1          _nop_();                        //等待ISP/IAP/EEPROM操作完成
+  74   1          IapIdle();
+  75   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     78    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

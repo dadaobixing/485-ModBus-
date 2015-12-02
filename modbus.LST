@@ -1,0 +1,473 @@
+C51 COMPILER V9.01   MODBUS                                                                01/04/2015 13:22:33 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE MODBUS
+OBJECT MODULE PLACED IN modbus.OBJ
+COMPILER INVOKED BY: E:\Program Files\Keil\C51\BIN\C51.EXE modbus.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+*** WARNING C500 IN LINE 1 OF MODBUS.C: LICENSE ERROR (R208: RENEW LICENSE ID CODE (LIC))
+
+   1          #include "STC15F2K60S2.h"
+   2          #include<intrins.h>
+   3          
+   4          #include "delay.h"
+   5          #include "modbus.h"
+   6          #include "E2PROM.h"
+   7          #include "IIC.h"
+   8          char TimeInterval;
+   9          char data DI[6]={1,2,3,4,5,6}; 
+  10          char data DO[6]={6,7,8,9,10,11}; 
+  11          char data AI[6]={11,12,13,14,15,16};
+  12          char data AO[6]={16,17,18,19,20,21};    
+  13          unsigned char data ReceiveData[14];
+  14          unsigned char data  countnumber;
+  15          
+  16          char MyAddress;
+  17          unsigned char Weight;
+  18          typedef unsigned char BYTE;
+  19          typedef unsigned int WORD;
+  20          
+  21          #define FOSC 18432000L          //系统频率
+  22          #define BAUD 9600             //串口波特率
+  23          
+  24          #define S1_S0 0x40              //P_SW1.6
+  25          #define S1_S1 0x80              //P_SW1.7
+  26          
+  27          /*---------------------------------------------------------------------------
+  28          函数说明：CRC 高位字节值表
+  29          ---------------------------------------------------------------------------*/
+  30          static unsigned char code auchCRCHi[] = {
+  31          0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0,
+  32          0x80, 0x41, 0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41,
+  33          0x00, 0xC1, 0x81, 0x40, 0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0,
+  34                                                                        
+  35          0x80, 0x41, 0x01, 0xC0, 0x80, 0x41, 0x00, 0xC1, 0x81, 0x40,
+  36          0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x00, 0xC1,
+  37          0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0, 0x80, 0x41,
+  38          0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x00, 0xC1,
+  39          0x81, 0x40, 0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41,
+  40          0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0,
+  41          0x80, 0x41, 0x00, 0xC1, 0x81, 0x40, 0x00, 0xC1, 0x81, 0x40,
+  42          0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0, 0x80, 0x41, 0x00, 0xC1,
+  43          0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x00, 0xC1, 0x81, 0x40,
+  44          0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0,
+  45          0x80, 0x41, 0x00, 0xC1, 0x81, 0x40, 0x00, 0xC1, 0x81, 0x40,
+  46          0x01, 0xC0, 0x80, 0x41, 0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0,
+  47          0x80, 0x41, 0x01, 0xC0, 0x80, 0x41, 0x00, 0xC1, 0x81, 0x40,
+  48          0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0,
+  49          0x80, 0x41, 0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41,
+  50          0x00, 0xC1, 0x81, 0x40, 0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0,
+  51          0x80, 0x41, 0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41,
+  52          0x01, 0xC0, 0x80, 0x41, 0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0,
+  53          0x80, 0x41, 0x00, 0xC1, 0x81, 0x40, 0x00, 0xC1, 0x81, 0x40,
+  54          0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0, 0x80, 0x41, 0x00, 0xC1,
+C51 COMPILER V9.01   MODBUS                                                                01/04/2015 13:22:33 PAGE 2   
+
+  55          0x81, 0x40, 0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41,
+  56          0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0,
+  57          0x80, 0x41, 0x00, 0xC1, 0x81, 0x40
+  58          } ;
+  59          /*---------------------------------------------------------------------------
+  60          函数说明：CRC低位字节值表
+  61          ---------------------------------------------------------------------------*/
+  62          static unsigned char code auchCRCLo[] = {
+  63          0x00, 0xC0, 0xC1, 0x01, 0xC3, 0x03, 0x02, 0xC2, 0xC6, 0x06,
+  64          0x07, 0xC7, 0x05, 0xC5, 0xC4, 0x04, 0xCC, 0x0C, 0x0D, 0xCD,
+  65          0x0F, 0xCF, 0xCE, 0x0E, 0x0A, 0xCA, 0xCB, 0x0B, 0xC9, 0x09,
+  66          0x08, 0xC8, 0xD8, 0x18, 0x19, 0xD9, 0x1B, 0xDB, 0xDA, 0x1A,
+  67          0x1E, 0xDE, 0xDF, 0x1F, 0xDD, 0x1D, 0x1C, 0xDC, 0x14, 0xD4,
+  68          0xD5, 0x15, 0xD7, 0x17, 0x16, 0xD6, 0xD2, 0x12, 0x13, 0xD3,
+  69          0x11, 0xD1, 0xD0, 0x10, 0xF0, 0x30, 0x31, 0xF1, 0x33, 0xF3,
+  70          0xF2, 0x32, 0x36, 0xF6, 0xF7, 0x37, 0xF5, 0x35, 0x34, 0xF4,
+  71          0x3C, 0xFC, 0xFD, 0x3D, 0xFF, 0x3F, 0x3E, 0xFE, 0xFA, 0x3A,
+  72          0x3B, 0xFB, 0x39, 0xF9, 0xF8, 0x38, 0x28, 0xE8, 0xE9, 0x29,
+  73          0xEB, 0x2B, 0x2A, 0xEA, 0xEE, 0x2E, 0x2F, 0xEF, 0x2D, 0xED,
+  74          0xEC, 0x2C, 0xE4, 0x24, 0x25, 0xE5, 0x27, 0xE7, 0xE6, 0x26,
+  75          0x22, 0xE2, 0xE3, 0x23, 0xE1, 0x21, 0x20, 0xE0, 0xA0, 0x60,
+  76          0x61, 0xA1, 0x63, 0xA3, 0xA2, 0x62, 0x66, 0xA6, 0xA7, 0x67,
+  77          0xA5, 0x65, 0x64, 0xA4, 0x6C, 0xAC, 0xAD, 0x6D, 0xAF, 0x6F,
+  78          0x6E, 0xAE, 0xAA, 0x6A, 0x6B, 0xAB, 0x69, 0xA9, 0xA8, 0x68,
+  79          0x78, 0xB8, 0xB9, 0x79, 0xBB, 0x7B, 0x7A, 0xBA, 0xBE, 0x7E,
+  80          0x7F, 0xBF, 0x7D, 0xBD, 0xBC, 0x7C, 0xB4, 0x74, 0x75, 0xB5,
+  81          0x77, 0xB7, 0xB6, 0x76, 0x72, 0xB2, 0xB3, 0x73, 0xB1, 0x71,
+  82          0x70, 0xB0, 0x50, 0x90, 0x91, 0x51, 0x93, 0x53, 0x52, 0x92,
+  83          0x96, 0x56, 0x57, 0x97, 0x55, 0x95, 0x94, 0x54, 0x9C, 0x5C,
+  84          0x5D, 0x9D, 0x5F, 0x9F, 0x9E, 0x5E, 0x5A, 0x9A, 0x9B, 0x5B,
+  85          0x99, 0x59, 0x58, 0x98, 0x88, 0x48, 0x49, 0x89, 0x4B, 0x8B,
+  86          0x8A, 0x4A, 0x4E, 0x8E, 0x8F, 0x4F, 0x8D, 0x4D, 0x4C, 0x8C,
+  87          0x44, 0x84, 0x85, 0x45, 0x87, 0x47, 0x46, 0x86, 0x82, 0x42,
+  88          0x43, 0x83, 0x41, 0x81, 0x80, 0x40
+  89          };
+  90          /*---------------------------------------------------------------------------
+  91          调用方式：unsigned int CRC16(unsigned char *puchMsg, unsigned int usDataLen)
+  92          函数说明：CRC校验
+  93          ---------------------------------------------------------------------------*/
+  94          unsigned int CRC16(unsigned char *puchMsg, unsigned int usDataLen)
+  95          {
+  96   1        unsigned char uchCRCHi = 0xFF ;    // 高CRC字节初始化 
+  97   1        unsigned char uchCRCLo = 0xFF ;    // 低CRC 字节初始化
+  98   1        unsigned uIndex ;                  // CRC循环中的索引 
+  99   1        while (usDataLen--)                // 传输消息缓冲区  
+ 100   1        {
+ 101   2          uIndex = uchCRCHi ^ *puchMsg++ ; // 计算CRC         
+ 102   2          uchCRCHi = uchCRCLo ^ auchCRCHi[uIndex] ;
+ 103   2          uchCRCLo = auchCRCLo[uIndex] ;
+ 104   2        }
+ 105   1        return (uchCRCHi << 8 | uchCRCLo) ;
+ 106   1      }
+ 107          /*---------------------------------------------------------------------------
+ 108          调用方式：unsigned char getbit(unsigned int  address,unsigned char  function)
+ 109          函数说明：取出所给地址的位值
+ 110          ---------------------------------------------------------------------------*/
+ 111          unsigned char getbit(unsigned int  address,unsigned char  function)
+ 112          {
+ 113   1        unsigned char data Offset;
+ 114   1        unsigned char data temp;
+ 115   1        unsigned char data *Myaddress;  
+ 116   1        Offset=(char)address&0x07;
+C51 COMPILER V9.01   MODBUS                                                                01/04/2015 13:22:33 PAGE 3   
+
+ 117   1        switch (function)                 //根据功能码不同进行相应处理
+ 118   1        {
+ 119   2         case 2:
+ 120   2                 Myaddress=DI;
+ 121   2                 break;
+ 122   2         case 1:
+ 123   2                 Myaddress=DO;             
+ 124   2                 break;
+ 125   2         default:
+ 126   2                 return 2;
+ 127   2        }
+ 128   1        temp=(char)(address>>3);
+ 129   1        temp=*(Myaddress+temp);
+ 130   1        temp>>=(Offset);
+ 131   1        if (temp&0x01)
+ 132   1          return 1;
+ 133   1        else
+ 134   1          return 0;
+ 135   1      }
+ 136          /*---------------------------------------------------------------------------
+ 137          调用方式：void SendData(unsigned char  *output,unsigned char  Outlength)
+ 138          函数说明：发送数据至窗口
+ 139          ---------------------------------------------------------------------------*/
+ 140          void SendData(unsigned char  *output,unsigned char  Outlength)
+ 141          {  
+ 142   1        ES=0;
+ 143   1        while(Outlength--)
+ 144   1        {  
+ 145   2          TI=0;
+ 146   2          ACC=*output;
+ 147   2          TB8=P;
+ 148   2          SBUF=*(output++);
+ 149   2          while(!TI);
+ 150   2          TI=0;   
+ 151   2        }  
+ 152   1        ES=1;
+ 153   1      }
+ 154          /*---------------------------------------------------------------------------
+ 155          调用方式：void Function12(unsigned char address,unsigned char len)
+ 156          函数说明：功能码1，2处理
+ 157          ---------------------------------------------------------------------------*/
+ 158          void Function12(unsigned char address,unsigned char len)
+ 159          {
+ 160   1              unsigned int data i;
+ 161   1              unsigned char data j;
+ 162   1              unsigned char data length;
+ 163   1              unsigned char data *send;
+ 164   1              unsigned int data temp;
+ 165   1              unsigned char data function;
+ 166   1      
+ 167   1              if((address==0x01)&&(len==0x02))        //开继电器1
+ 168   1              {
+ 169   2                      Exdata=read_add(0x01); //开始I2C上限中断数据
+ 170   2                      delay_ms(20);
+ 171   2                      if(Exdata==0x20)           //如果接收到上限数据关闭继电器
+ 172   2                      {
+ 173   3                              led1=1;
+ 174   3                              Exflag=0;
+ 175   3                      }
+ 176   2                      else
+ 177   2                      {
+ 178   3                              led1=0;
+C51 COMPILER V9.01   MODBUS                                                                01/04/2015 13:22:33 PAGE 4   
+
+ 179   3                              Exflag=1;
+ 180   3                      }
+ 181   2              }
+ 182   1              if((address==0x02)&&(len==0x01))        //关继电器1
+ 183   1              {
+ 184   2                      led1=1;
+ 185   2                      Exflag=0;       
+ 186   2              }
+ 187   1              if((address==0x03)&&(len==0x02))        //开继电器2
+ 188   1              {
+ 189   2                      Exdata=read_add(0x01); //开始I2C上限中断数据
+ 190   2                      delay_ms(20);
+ 191   2                      if(Exdata==0x20)           //如果接收到上限数据关闭继电器
+ 192   2                      {
+ 193   3                              led2=1;
+ 194   3                              Exflag=0;
+ 195   3                      }
+ 196   2                      else
+ 197   2                      {
+ 198   3                              led2=0;
+ 199   3                              Exflag=1;
+ 200   3                      }
+ 201   2      
+ 202   2              }
+ 203   1              if((address==0x04)&&(len==0x01))        //关继电器1
+ 204   1              {
+ 205   2                      led2=1;
+ 206   2                      Exflag=0;       
+ 207   2              }
+ 208   1      
+ 209   1              if((address==0x05)&&(len==0x02))   //同时开继电器1、2
+ 210   1              {
+ 211   2                      Exdata=read_add(0x01); //开始I2C上限中断数据
+ 212   2                      delay_ms(20);
+ 213   2                      if(Exdata==0x20)           //如果接收到上限数据关闭继电器
+ 214   2                      {
+ 215   3                              led1=1;
+ 216   3                              led2=1;
+ 217   3                              Exflag=0;
+ 218   3                      }
+ 219   2                      else
+ 220   2                      {
+ 221   3                              led1=0;
+ 222   3                              led2=0;
+ 223   3                              Exflag=1;
+ 224   3                      }
+ 225   2                      
+ 226   2              }
+ 227   1      
+ 228   1              if((address==0x06)&&(len==0x01))   //同时关继电器1、2
+ 229   1              {
+ 230   2                      led1=1;
+ 231   2                      led2=1;
+ 232   2                      Exflag=0;       
+ 233   2              }
+ 234   1      
+ 235   1              length=0;
+ 236   1              send=ReceiveData;
+ 237   1              function=send[1];
+ 238   1              for (i=1;i<=len;i++)
+ 239   1              {
+ 240   2                      length++;
+C51 COMPILER V9.01   MODBUS                                                                01/04/2015 13:22:33 PAGE 5   
+
+ 241   2                      *(send+2+length)=0;
+ 242   2                      for (j=0;j<8;j++)
+ 243   2                      {
+ 244   3                        *(send+2+length)=*(send+2+length)|getbit(address,function)<<j;
+ 245   3                        address++;
+ 246   3                        i++;
+ 247   3                      if(i>len)break;
+ 248   3              }
+ 249   2              i--;
+ 250   2              }
+ 251   1              *(send+2)=length;                        //数据长度
+ 252   1              temp=CRC16(send,length+3);               //DI状态数据
+ 253   1              *(send+3+length)=(char)(temp>>8);        //CRC校验高
+ 254   1              *(send+4+length)=(char)temp;             //CRC校验低
+ 255   1              SendData(send,length+5);                 //调用A发送程序
+ 256   1      }
+ 257          /*---------------------------------------------------------------------------
+ 258          调用方式：void Function3(unsigned char  address,unsigned char  len)
+ 259          函数说明：功能码3处理-----读取寄存器
+ 260          ---------------------------------------------------------------------------*/
+ 261          void Function3(unsigned char  address,unsigned char  len)
+ 262          {
+ 263   1              unsigned char data i;
+ 264   1              unsigned char data *send;
+ 265   1              unsigned int data temp; 
+ 266   1      
+ 267   1              Weight=read_add(0x03);                                  //开始I2C采集重量
+ 268   1              IapEraseSector(0x0001);                                 
+ 269   1              delay_ms(10);
+ 270   1              IapEraseSector(0x0000);                                 
+ 271   1              delay_ms(10);
+ 272   1              IapProgramByte(0x0000,0x00);
+ 273   1              delay_ms(10);
+ 274   1              IapProgramByte(0x0001,Weight);                  //将重量数据写入EEPROM
+ 275   1              delay_ms(10);
+ 276   1      
+ 277   1              send=ReceiveData;
+ 278   1              *(send+2)=2*len;                         //数据长度高
+ 279   1              address=2*address;
+ 280   1      
+ 281   1        for(i=0;i<len;i++)                       //取输入寄存器数据
+ 282   1        {
+ 283   2      //    *(send+3+2*i)=AO[address++];
+ 284   2      //    *(send+4+2*i)=AO[address++];
+ 285   2      
+ 286   2              *(send+3+2*i)=IapReadByte(address++);
+ 287   2          *(send+4+2*i)=IapReadByte(address++);        //根据指令读取EEPROM的重量数据
+ 288   2        }
+ 289   1        temp=CRC16(send,2*len+3);                //CRC校验
+ 290   1        *(send+3+2*len)=(char)(temp>>8);
+ 291   1        *(send+4+2*len)=(char)temp;
+ 292   1        SendData(send,2*len+5);                  //调用A发送程序
+ 293   1      }
+ 294          /*---------------------------------------------------------------------------
+ 295          调用方式：void SendError(char ErrorCode)
+ 296          函数说明：
+ 297          ---------------------------------------------------------------------------*/
+ 298          void SendError(char ErrorCode)
+ 299          {
+ 300   1        unsigned char data *send;
+ 301   1        unsigned int data temp;
+ 302   1        send=ReceiveData;
+C51 COMPILER V9.01   MODBUS                                                                01/04/2015 13:22:33 PAGE 6   
+
+ 303   1        *(send+1)=ReceiveData[1]|0x01;//最高位置1
+ 304   1        *(send+2)=ErrorCode;
+ 305   1        temp=CRC16(send,3);
+ 306   1        *(send+3)=(char)(temp>>8);
+ 307   1        *(send+4)=(char)temp;
+ 308   1        SendData(send,countnumber);              //调用发送程序,返回错误代码
+ 309   1      }
+ 310          /*---------------------------------------------------------------------------
+ 311          调用方式：void Deal()
+ 312          函数说明：接收数据处理
+ 313          ---------------------------------------------------------------------------*/
+ 314          void Deal()
+ 315          {
+ 316   1        unsigned int data temp;
+ 317   1        unsigned char data address;
+ 318   1        unsigned char data length;
+ 319   1        unsigned char data counter;
+ 320   1        unsigned char data *Pointer;
+ 321   1        Pointer=ReceiveData;
+ 322   1        counter=countnumber;
+ 323   1        if(MyAddress==Pointer[0])  // 是否与本机站号相同
+ 324   1        {
+ 325   2                if (counter<=3 ) return;
+ 326   2                temp=Pointer[counter-2]<<8;   
+ 327   2                temp= temp|Pointer[counter-1];
+ 328   2                if( temp==CRC16(Pointer,counter-2))      //CRC较验正确
+ 329   2                { 
+ 330   3                  address=Pointer[3];
+ 331   3                  length=Pointer[5];
+ 332   3                  if(address<48)
+ 333   3                  {
+ 334   4                    switch (Pointer[1])                  //根据功能码不同进行相应处理*/
+ 335   4                 {
+ 336   5                  case 1:
+ 337   5                          Function12(address,length);
+ 338   5                          break;
+ 339   5                  case 2:
+ 340   5                          Function12(address,length);
+ 341   5                          break;
+ 342   5                  case 3:
+ 343   5                                      if(length>9)
+ 344   5                                      break;
+ 345   5                                      else
+ 346   5                                      {
+ 347   6                              address=address-1;
+ 348   6                              Function3(address,length);
+ 349   6                                      }
+ 350   5                          break;
+ 351   5                  default:
+ 352   5                             SendError(0x81);
+ 353   5                             break;
+ 354   5                    }
+ 355   4                  }
+ 356   3                  else
+ 357   3                  { SendError(0x82);}
+ 358   3                }
+ 359   2              }
+ 360   1        countnumber=0;
+ 361   1      }
+ 362          
+ 363          /*---------------------------------------------------------------------------
+ 364          调用方式：void Init_timer2(unsigned int baudrate)
+C51 COMPILER V9.01   MODBUS                                                                01/04/2015 13:22:33 PAGE 7   
+
+ 365          函数说明：定时器2的初始化
+ 366          ---------------------------------------------------------------------------*/
+ 367          void Init_timer2()
+ 368          {
+ 369   1              TL0  = 0xff;
+ 370   1              TH0  = 0x48;
+ 371   1              EA=1;
+ 372   1              ET0=0;
+ 373   1              TR0=1;
+ 374   1      }
+ 375          /*---------------------------------------------------------------------------
+ 376          调用方式：void Init_SerialPort(unsigned int baudrate)
+ 377          函数说明：串口初始化
+ 378          ---------------------------------------------------------------------------*/
+ 379          void Init_SerialPort(unsigned int baudrate)
+ 380          {
+ 381   1          ACC = P_SW1;
+ 382   1          ACC &= ~(S1_S0 | S1_S1);    //S1_S0=0 S1_S1=0
+ 383   1          P_SW1 = ACC;                //(P3.0/RxD, P3.1/TxD)
+ 384   1       
+ 385   1          SCON = 0x50;                //8位可变波特率
+ 386   1          T2L = (65536 - (FOSC/4/BAUD));   //设置波特率重装值
+ 387   1          T2H = (65536 - (FOSC/4/BAUD))>>8;
+ 388   1          AUXR = 0x14;                //T2为1T模式, 并启动定时器2
+ 389   1          AUXR |= 0x01;               //选择定时器2为串口1的波特率发生器
+ 390   1          ES = 1;                     //使能串口1中断
+ 391   1          EA = 1;     
+ 392   1      }
+*** WARNING C280 IN LINE 379 OF MODBUS.C: 'baudrate': unreferenced local variable
+ 393          
+ 394          /*---------------------------------------------------------------------------
+ 395          调用方式：void SeiralA() interrupt 4 using 0
+ 396          函数说明：通讯中断
+ 397          ---------------------------------------------------------------------------*/
+ 398          void SeiralA() interrupt 4 using 0
+ 399          {
+ 400   1        if(RI) 
+ 401   1        {
+ 402   2          if((TimeInterval>2)&&(TimeInterval<=4)) 
+ 403   2          { countnumber=0;}
+ 404   2          if(countnumber>20) 
+ 405   2          { countnumber=0;}                     
+ 406   2          ReceiveData[countnumber++]=SBUF;   //将接收到的数据到缓冲区内
+ 407   2          TimeInterval=0;
+ 408   2          RI=0;
+ 409   2          ET0=1;                                //当接收到数据后,将定时器0开启
+ 410   2        }                
+ 411   1      }
+ 412          
+ 413          /*---------------------------------------------------------------------------
+ 414          调用方式：void SerialPortTime() interrupt 1 using 0
+ 415          函数说明：定时器0中断程序
+ 416          ---------------------------------------------------------------------------*/
+ 417          void SerialPortTime() interrupt 1 using 0
+ 418          {
+ 419   1              TL0  = 0xff;
+ 420   1              TH0  = 0x48;
+ 421   1        ET0=0;                                  //定时器0中断允许控制                   
+ 422   1        TimeInterval=TimeInterval+1;
+ 423   1        if((TimeInterval>4) && countnumber) 
+ 424   1        {
+ 425   2          Recenable=1;           //发送
+C51 COMPILER V9.01   MODBUS                                                                01/04/2015 13:22:33 PAGE 8   
+
+ 426   2           Deal();                             //将接收到的数据进行处理
+ 427   2           Recenable=0;        //接收
+ 428   2          countnumber=0;
+ 429   2        }
+ 430   1        else
+ 431   1        { ET0=1;}                               //将定时器0打开
+ 432   1        TF0=0;          //定时器0溢出标志,软件清0
+ 433   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1121    ----
+   CONSTANT SIZE    =    512    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     42      26
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  2 WARNING(S),  0 ERROR(S)

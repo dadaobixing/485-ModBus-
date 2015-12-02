@@ -1,0 +1,71 @@
+C51 COMPILER V9.01   MAIN                                                                  01/04/2015 13:22:33 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: E:\Program Files\Keil\C51\BIN\C51.EXE main.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+*** WARNING C500 IN LINE 1 OF MAIN.C: LICENSE ERROR (R208: RENEW LICENSE ID CODE (LIC))
+
+   1          //#include <REGX52.H>
+   2          #include "STC15F2K60S2.h"
+   3          #include "IIC.h"
+   4          #include "delay.h"
+   5          #include "modbus.h"
+   6          #include "E2PROM.h"
+   7          
+   8          void main()
+   9          {
+  10   1              i2cinit();
+  11   1              delay_ms(20);
+  12   1      
+  13   1              write_add(0x01,0x20);
+  14   1              delay_ms(20);
+  15   1              write_add(0x03,110);
+  16   1              delay_ms(20);
+  17   1      
+  18   1              Init_SerialPort(9600);
+  19   1              Init_timer2();
+  20   1              EA=1;                                   //开总中断
+  21   1              Recenable=0;                            //485接收允许
+  22   1      
+  23   1              MyAddress=IapReadByte(0x1300);                  //从EEPROM地址0x1300读取站号
+  24   1              delay_ms(50);
+  25   1      //      SBUF=MyAddress;
+  26   1      //      delay_ms(50);
+  27   1      
+  28   1              while(1)
+  29   1              {
+  30   2                      if(Exflag==1)
+  31   2                      {
+  32   3                              Exdata=read_add(0x01); //开始I2C上限中断数据
+  33   3                              delay_ms(20);
+  34   3                              if(Exdata==0x20)           //如果接收到上限数据
+  35   3                              {
+  36   4                                      led1=1;
+  37   4                                      led2=1;                    //关继电器
+  38   4                                      Exflag=0;                  //清零I2C通信标志位
+  39   4                                      read_add(0x02);    //结束I2C通信
+  40   4                              }
+  41   3                      }
+  42   2              }
+  43   1      
+  44   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    106    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+C51 COMPILER V9.01   MAIN                                                                  01/04/2015 13:22:33 PAGE 2   
+
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

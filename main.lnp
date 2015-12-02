@@ -1,0 +1,7 @@
+"delay.obj",
+"IIC.obj",
+"main.obj",
+"modbus.obj",
+"E2PROM.obj" 
+TO "main" 
+RAMSIZE(256) 
